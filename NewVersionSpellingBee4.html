@@ -1,0 +1,180 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Spelling Bee Pro: Teacher's Panel</title>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+    <style>
+        :root { 
+            --primary: #46178f; 
+            --accent: #eb1041; 
+            --bg-img: url('https://images.unsplash.com/photo-1503676260728-1c00da094a0b?q=80&w=2000'); 
+            --font-fam: 'Segoe UI', sans-serif; 
+        }
+        body { font-family: var(--font-fam); margin: 0; background: #1a1a1a; color: white; overflow: hidden; }
+        
+        .admin-layout { display: grid; grid-template-columns: 380px 1fr; height: 100vh; }
+
+        /* Sidebar Teacher's Panel */
+        .sidebar { background: var(--primary); padding: 25px; box-shadow: 5px 0 15px rgba(0,0,0,0.3); overflow-y: auto; z-index: 10; border-right: 1px solid rgba(255,255,255,0.1); }
+        .sidebar h2 { font-size: 1.6rem; margin-bottom: 25px; display: flex; align-items: center; gap: 12px; font-weight: 800; }
+        
+        .section-label { font-weight: bold; margin: 20px 0 10px; color: rgba(255,255,255,0.8); font-size: 0.9rem; text-transform: uppercase; letter-spacing: 1px; }
+        .btn-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+        
+        .btn { border: none; padding: 14px; border-radius: 10px; cursor: pointer; font-weight: bold; transition: all 0.2s; font-family: inherit; font-size: 1rem; }
+        .btn-class { background: rgba(255,255,255,0.15); color: white; border: 1px solid rgba(255,255,255,0.2); }
+        .btn-class.active { background: #00e5ff; color: #111; box-shadow: 0 0 20px rgba(0,229,255,0.4); border-color: #00e5ff; }
+        
+        .btn-mode { background: rgba(255,255,255,0.15); color: white; text-align: left; width: 100%; margin-bottom: 10px; display: flex; align-items: center; gap: 10px; }
+        .btn-mode.active { background: #28a745; border: 1px solid white; }
+
+        .word-box { background: rgba(0,0,0,0.3); padding: 18px; border-radius: 15px; margin: 20px 0; border: 1px solid rgba(255,255,255,0.1); }
+        textarea, select, input { width: 100%; padding: 12px; border-radius: 8px; border: none; margin-top: 8px; box-sizing: border-box; font-family: inherit; font-size: 1rem; }
+
+        /* Main Stage Logic */
+        .stage { position: relative; background: linear-gradient(rgba(0,0,0,0.5), rgba(0,0,0,0.5)), var(--bg-img); background-size: cover !important; background-position: center; display: flex; flex-direction: column; align-items: center; padding: 40px; transition: 0.5s; }
+        .settings-btn { position: absolute; top: 25px; right: 25px; font-size: 2.2rem; cursor: pointer; opacity: 0.7; z-index: 50; }
+        .timer-circle { width: 130px; height: 130px; border: 6px solid white; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 3.5rem; font-weight: bold; background: rgba(0,0,0,0.4); margin-bottom: 20px; }
+        #qrcode { background: white; padding: 15px; border-radius: 12px; border: 6px solid var(--primary); }
+
+        /* Settings Modal */
+        .modal { display: none; position: fixed; top: 50%; left: 50%; transform: translate(-50%, -50%); background: white; color: #333; padding: 35px; border-radius: 25px; z-index: 100; width: 420px; box-shadow: 0 0 100px rgba(0,0,0,0.6); }
+        .overlay { display: none; position: fixed; top:0; left:0; width:100%; height:100%; background:rgba(0,0,0,0.85); z-index:90; backdrop-filter: blur(5px); }
+        .drop-zone { border: 2px dashed #ccc; padding: 20px; border-radius: 10px; text-align: center; color: #777; cursor: pointer; margin: 10px 0; }
+    </style>
+</head>
+<body>
+
+<div class="admin-layout">
+    <div class="sidebar">
+        <h2>🕹️ Teacher's Panel</h2>
+        
+        <div class="section-label">1. Select Class</div>
+        <div class="btn-grid">
+            <button class="btn btn-class" onclick="pickClass(this)">701</button>
+            <button class="btn btn-class" onclick="pickClass(this)">702</button>
+            <button class="btn btn-class" onclick="pickClass(this)">703</button>
+            <button class="btn btn-class" onclick="pickClass(this)">801</button>
+            <button class="btn btn-class" onclick="pickClass(this)">802</button>
+            <button class="btn btn-class" onclick="pickClass(this)">803</button>
+            <button class="btn btn-class" onclick="pickClass(this)">901</button>
+            <button class="btn btn-class" onclick="pickClass(this)">902</button>
+            <button class="btn btn-class" onclick="pickClass(this)">903</button>
+        </div>
+
+        <div class="section-label">2. Mode Settings</div>
+        <button class="btn btn-mode active" id="modeG" onclick="updateMode('group')">👥 Group Mode (1-7)</button>
+        <button class="btn btn-mode" id="modeI" onclick="updateMode('indiv')">👤 Individual Mode</button>
+
+        <div class="word-box">
+            <div class="section-label" style="color:white; margin:0 0 5px;">3. Word Manager</div>
+            <textarea id="words" rows="2" placeholder="Enter words (Apple, Banana...)" oninput="syncWords()"></textarea>
+            <select id="activeWord"><option>Select round word...</option></select>
+        </div>
+
+        <button class="btn" style="background:var(--accent); color:white; width:100%; font-size:1.2rem;" onclick="launchRound()">🔥 START ROUND</button>
+        <button class="btn" style="background:#0542b9; color:white; width:100%; margin-top:12px;" onclick="revealRankings()">📢 REVEAL RANKINGS</button>
+        <button class="btn" style="background:#444; color:white; width:100%; margin-top:12px;" onclick="exportCSV()">💾 END & DOWNLOAD</button>
+    </div>
+
+    <div class="stage" id="gameStage">
+        <div class="settings-btn" onclick="openSettings()">⚙️</div>
+        <h1 id="stageTitle">Select a Class to Begin</h1>
+        <div class="timer-circle" id="clock">30</div>
+        <div id="qrcode"></div>
+        <p style="margin-top:15px; font-weight:700;">SCAN TO JOIN GAME</p>
+    </div>
+</div>
+
+<div class="overlay" onclick="closeSettings()"></div>
+<div class="modal" id="setModal">
+    <h3>🎨 Theme Customization</h3>
+    <label>Change Background (Drop or Paste Link)</label>
+    <div id="dropZone" class="drop-zone">Drag & Drop Image Here</div>
+    <input type="text" id="inBg" placeholder="Paste image/drive link here">
+    
+    <label style="display:block; margin-top:20px;">Theme Color Combination</label>
+    <input type="color" id="inColor" value="#46178f" style="height: 50px; padding: 5px;">
+    
+    <label style="display:block; margin-top:20px;">Font Style</label>
+    <select id="inFont">
+        <option value="'Segoe UI', sans-serif">Modern</option>
+        <option value="'Georgia', serif">Elegant</option>
+        <option value="'Comic Sans MS', cursive">Playful</option>
+    </select>
+    <button class="btn" style="background:var(--primary); color:white; width:100%; margin-top:25px;" onclick="applyChanges()">Apply Changes</button>
+</div>
+
+<script>
+    let curMode = 'group', curClass = '';
+
+    function pickClass(el) {
+        curClass = el.innerText;
+        document.getElementById('stageTitle').innerText = "Class " + curClass;
+        document.querySelectorAll('.btn-class').forEach(b => b.classList.remove('active'));
+        el.classList.add('active');
+        genQR();
+    }
+
+    function updateMode(m) {
+        curMode = m;
+        document.getElementById('modeG').classList.toggle('active', m==='group');
+        document.getElementById('modeI').classList.toggle('active', m==='indiv');
+        genQR();
+    }
+
+    function genQR() {
+        if(!curClass) return;
+        document.getElementById('qrcode').innerHTML = "";
+        new QRCode(document.getElementById("qrcode"), {
+            text: window.location.href.split('?')[0] + "?role=student&class=" + curClass + "&mode=" + curMode,
+            width: 170, height: 170
+        });
+    }
+
+    function syncWords() {
+        const list = document.getElementById('words').value.split(',').map(s => s.trim()).filter(s => s);
+        const sel = document.getElementById('activeWord');
+        sel.innerHTML = '<option>Select round word...</option>';
+        list.forEach(w => sel.innerHTML += `<option value="${w}">${w}</option>`);
+    }
+
+    const dropZone = document.getElementById('dropZone');
+    dropZone.ondragover = (e) => { e.preventDefault(); dropZone.style.background = "#f0f7ff"; };
+    dropZone.ondrop = (e) => {
+        e.preventDefault();
+        const file = e.dataTransfer.files[0];
+        if (file && file.type.startsWith('image/')) {
+            const reader = new FileReader();
+            reader.onload = (event) => document.documentElement.style.setProperty('--bg-img', `url('${event.target.result}')`);
+            reader.readAsDataURL(file);
+        }
+    };
+
+    function openSettings() { document.getElementById('setModal').style.display = 'block'; document.querySelector('.overlay').style.display = 'block'; }
+    function closeSettings() { document.getElementById('setModal').style.display = 'none'; document.querySelector('.overlay').style.display = 'none'; }
+
+    function applyChanges() {
+        const bgUrl = document.getElementById('inBg').value;
+        const col = document.getElementById('inColor').value;
+        const font = document.getElementById('inFont').value;
+        if(bgUrl) document.documentElement.style.setProperty('--bg-img', `url('${bgUrl}')`);
+        document.documentElement.style.setProperty('--primary', col);
+        document.documentElement.style.setProperty('--font-fam', font);
+        closeSettings();
+    }
+
+    function launchRound() {
+        if(!document.getElementById('activeWord').value.includes("Select")) {
+            let t = 30;
+            const timer = setInterval(() => {
+                t--; document.getElementById('clock').innerText = t;
+                if(t <= 0) { clearInterval(timer); alert("Round Ended!"); }
+            }, 1000);
+        } else { alert("Choose a word first!"); }
+    }
+</script>
+</body>
+</html>
